@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
 
 /*
@@ -98,11 +99,57 @@ namespace ghstats
             }
         }
 
+        static void ShowUsage()
+        {
+            Console.WriteLine("Usage: ghstats [options] organization/repository\n");
+            Console.WriteLine("Options:");
+            Console.WriteLine(" -h, --help                 Show help.");
+            Console.WriteLine(" --pages=<count>            Fetch at most this many pages of pull requests (default=1).");
+            Console.WriteLine(" --state=(all|closed|open)  Count pull requests in this state (default=closed).");
+            Console.WriteLine(" --version                  Show version.");
+        }
+
         static void Main(string[] args)
         {
-            const string stateLimit = "closed"; // "all"
-            const int maxPages = 1;
-            const string repo = "openenclave/openenclave";
+            string stateLimit = "closed";
+            int maxPages = 1;
+            string repo = null;
+
+            foreach (string arg in args)
+            {
+                if (arg == "--version")
+                {
+                    Console.WriteLine("ghstats version " + Assembly.GetExecutingAssembly().GetName().Version);
+                    return;
+                }
+
+                if (arg == "--help" || arg == "-h")
+                {
+                    ShowUsage();
+                    return;
+                }
+
+                if (arg.StartsWith("--pages="))
+                {
+                    maxPages = Convert.ToInt32(arg.Substring(8));
+                    continue;
+                }
+
+                if (arg.StartsWith("--state="))
+                {
+                    stateLimit = arg.Substring(8);
+                    continue;
+                }
+
+                repo = arg;
+            }
+
+            if (!repo.Contains('/'))
+            {
+                Console.WriteLine("Error: you must specify a github repository\n");
+                ShowUsage();
+                return;
+            }
 
             var stats = new Dictionary<string, UserStats>();
 
