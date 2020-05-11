@@ -65,10 +65,19 @@ namespace ghstats
                 // First check rate limit.
                 string url = "https://api.github.com/rate_limit";
                 wc.Headers.Add("User-Agent: Other");
+                string rateLimitString;
 #if !USE_MOCK_DATA
-                string rateLimitString = wc.DownloadString(url);
+                try
+                {
+                    rateLimitString = wc.DownloadString(url);
+                }
+                catch (WebException)
+                {
+                    Console.Error.WriteLine("Warning: github is unreachable, so using only cached data");
+                    return false;
+                }
 #else
-                string rateLimitString = "{\"rate\":{\"limit\":60,\"remaining\":60,\"reset\":0}}";
+                rateLimitString = "{\"rate\":{\"limit\":60,\"remaining\":60,\"reset\":0}}";
 #endif
                 GithubRateLimitStatus rateLimitStatus = JsonSerializer.Deserialize<GithubRateLimitStatus>(rateLimitString);
                 if (rateLimitStatus.rate.remaining == 0)

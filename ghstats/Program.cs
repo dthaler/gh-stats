@@ -61,6 +61,7 @@ namespace ghstats
         {
             Console.WriteLine("Usage: ghstats [options] organization/repository\n");
             Console.WriteLine("Options:");
+            Console.WriteLine(" -c, --cached-only          Don't query github, only used cached data.");
             Console.WriteLine(" -h, --help                 Show help.");
             Console.WriteLine(" --pages=<count>            Fetch at most this many pages of pull requests (default=1).");
             Console.WriteLine(" --state=(all|closed|open)  Count pull requests in this state (default=closed).");
@@ -72,6 +73,7 @@ namespace ghstats
             string stateLimit = "closed";
             int maxPages = 1;
             string repo = null;
+            bool cachedOnly = false;
 
             foreach (string arg in args)
             {
@@ -85,6 +87,12 @@ namespace ghstats
                 {
                     ShowUsage();
                     return;
+                }
+
+                if (arg == "--cached-only" || arg == "-c")
+                {
+                    cachedOnly = true;
+                    continue;
                 }
 
                 if (arg.StartsWith("--pages="))
@@ -112,8 +120,11 @@ namespace ghstats
             // Get the last known database for the specified repository.
             Database db = Database.Load(repo);
 
-            // Try to fetch updated data from github.
-            GithubApi.UpdateDatabase(db, stateLimit, maxPages);
+            if (!cachedOnly)
+            {
+                // Try to fetch updated data from github.
+                GithubApi.UpdateDatabase(db, stateLimit, maxPages);
+            }
 
             Dictionary<string, UserStats> stats = db.ComputeStats();
 

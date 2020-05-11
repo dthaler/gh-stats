@@ -7,6 +7,7 @@ This project attempts to provide reviewer stats for a given github repository's 
     ghstats [options] organization/repository
 
     Options:
+     -c, --cached-only          Don't query github, only used cached data.
      -h, --help                 Show help.
      --pages=<count>            Fetch at most this many pages of pull requests
                                 (default=1).
