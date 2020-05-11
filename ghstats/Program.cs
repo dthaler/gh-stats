@@ -1,6 +1,7 @@
 ﻿// Copyright (c) 2020 Dave Thaler.  All Rights Reserved.
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 
 /*
@@ -108,7 +109,13 @@ namespace ghstats
                 return;
             }
 
-            Dictionary<string, UserStats> stats = GithubApi.FetchStats(repo, stateLimit, maxPages);
+            // Get the last known database for the specified repository.
+            Database db = Database.Load(repo);
+
+            // Try to fetch updated data from github.
+            GithubApi.UpdateDatabase(db, stateLimit, maxPages);
+
+            Dictionary<string, UserStats> stats = db.ComputeStats();
 
             // Finally, print the tally.
             if (stats != null)
