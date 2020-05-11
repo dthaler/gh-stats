@@ -59,6 +59,7 @@ namespace ghstats
         public static bool UpdateDatabase(Database db, string stateLimit, int maxPages)
         {
             string repo = db.Repository;
+            bool succeeded = true;
 
             using (var wc = new WebClient())
             {
@@ -82,19 +83,44 @@ namespace ghstats
                 GithubRateLimitStatus rateLimitStatus = JsonSerializer.Deserialize<GithubRateLimitStatus>(rateLimitString);
                 if (rateLimitStatus.rate.remaining == 0)
                 {
-                    Console.WriteLine("Rate limit will reset at {0}", rateLimitStatus.rate.ResetDateTime);
+                    Console.Error.WriteLine("Rate limit will reset at {0}", rateLimitStatus.rate.ResetDateTime);
                     return false;
                 }
 
-                for (int page = 1; page <= maxPages; page++)
+                for (int page = 1; (page <= maxPages) && succeeded; page++)
                 {
                     url = "https://api.github.com/repos/" + repo + "/pulls?state=" + stateLimit + "&page=" + page;
                     wc.Headers.Add("User-Agent: Other");
+                    string jsonString;
+                    int lastPage;
 #if !USE_MOCK_DATA
-                    string jsonString = wc.DownloadString(url);
+                    try
+                    {
+                        jsonString = wc.DownloadString(url);
+                    }
+                    catch (WebException ex)
+                    {
+                        Console.Error.WriteLine("Error: " + ex.Message);
+                        succeeded = false;
+                        break;
+                    }
+
+                    // The Link header will tell us how many total pages there are.  It will look like this:
+                    // <https://api.github.com/repositories/101804230/pulls?state=closed&page=2>; rel="next", <https://api.github.com/repositories/101804230/pulls?state=closed&page=60>; rel="last"
+                    // In the above example, there are 60 pages.
+                    string linkHeaderValue = wc.ResponseHeaders.Get("Link");
+                    int endIndex = linkHeaderValue.LastIndexOf(">; rel=\"last\"");
+                    int pageStringIndex = linkHeaderValue.LastIndexOf("page=", endIndex);
+                    string lastPageString = linkHeaderValue.Substring(pageStringIndex + 5, endIndex - pageStringIndex - 5);
+                    lastPage = Convert.ToInt32(lastPageString);
 #else
-                    string jsonString = "[{\"number\":13,\"state\":\"" + stateLimit + "\",\"requested_reviewers\":[{\"login\":\"user3\"},{\"login\":\"user4\"}],\"updated_at\":\"TBD\"}]";
+                    jsonString = "[{\"number\":13,\"state\":\"" + stateLimit + "\",\"requested_reviewers\":[{\"login\":\"user3\"},{\"login\":\"user4\"}],\"updated_at\":\"TBD\"}]";
+                    lastPage = 1;
 #endif
+                    if (maxPages > lastPage)
+                    {
+                        maxPages = lastPage;
+                    }
                     var pageObject = JsonSerializer.Deserialize<List<GithubPullRequest>>(jsonString);
 
                     // For each PR...
@@ -111,25 +137,35 @@ namespace ghstats
 
                         // Only ask for more information if the PR was modified since we last got the data.
                         string lastUpdatedAt = db.GetPullRequestUpdatedAt(pr.number);
-                        if (pr.updated_at != lastUpdatedAt)
+                        if ((pr.updated_at != lastUpdatedAt) && succeeded)
                         {
                             string reviewUrl = "https://api.github.com/repos/" + repo + "/pulls/" + pr.number + "/reviews";
                             wc.Headers.Add("User-Agent: Other");
-#if !USE_MOCK_DATA
-                            string jsonString2 = wc.DownloadString(reviewUrl);
-#else
-                            string jsonString2 = "[{\"user\":{\"login\":\"user1\"}, \"state\":\"APPROVED\"},{\"user\":{\"login\":\"user2\"}, \"state\":\"REQUESTED_CHANGES\"}]";
-#endif
-                            var reviewsObject = JsonSerializer.Deserialize<List<GithubReview>>(jsonString2);
-
-                            // For each review done...
-                            foreach (GithubReview review in reviewsObject)
+                            try
                             {
-                                db.UpdateReviewState(pr.number, review.user.login, review.state);
-                            }
+#if !USE_MOCK_DATA
+                                string jsonString2 = wc.DownloadString(reviewUrl);
+#else
+                                string jsonString2 = "[{\"user\":{\"login\":\"user1\"}, \"state\":\"APPROVED\"},{\"user\":{\"login\":\"user2\"}, \"state\":\"REQUESTED_CHANGES\"}]";
+#endif
+                                var reviewsObject = JsonSerializer.Deserialize<List<GithubReview>>(jsonString2);
 
-                            // Finally, save the updated_at timestamp.
-                            db.UpdatePullRequestState(pr.number, pr.state, pr.updated_at);
+                                // For each review done...
+                                foreach (GithubReview review in reviewsObject)
+                                {
+                                    db.UpdateReviewState(pr.number, review.user.login, review.state);
+                                }
+
+                                // Finally, save the updated_at timestamp.
+                                db.UpdatePullRequestState(pr.number, pr.state, pr.updated_at);
+                            }
+                            catch (WebException ex)
+                            {
+                                Console.Error.WriteLine("Error: " + ex.Message);
+
+                                // Failed to get a response, stop reading pages.
+                                succeeded = false;
+                            }
                         }
                     }
                 }
@@ -137,7 +173,7 @@ namespace ghstats
 
             db.Save();
 
-            return true;
+            return succeeded;
         }
     }
 }

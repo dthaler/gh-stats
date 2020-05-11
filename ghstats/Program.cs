@@ -63,7 +63,7 @@ namespace ghstats
             Console.WriteLine("Options:");
             Console.WriteLine(" -c, --cached-only          Don't query github, only used cached data.");
             Console.WriteLine(" -h, --help                 Show help.");
-            Console.WriteLine(" --pages=<count>            Fetch at most this many pages of pull requests (default=1).");
+            Console.WriteLine(" --pages=<count>            Fetch at most this many pages of pull requests (default=any).");
             Console.WriteLine(" --state=(all|closed|open)  Count pull requests in this state (default=closed).");
             Console.WriteLine(" --version                  Show version.");
         }
@@ -71,7 +71,7 @@ namespace ghstats
         static void Main(string[] args)
         {
             string stateLimit = "closed";
-            int maxPages = 1;
+            int maxPages = int.MaxValue;
             string repo = null;
             bool cachedOnly = false;
 
