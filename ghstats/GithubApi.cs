@@ -60,6 +60,7 @@ namespace ghstats
         {
             string repo = db.Repository;
             bool succeeded = true;
+            bool changed = true;
 
             using (var wc = new WebClient())
             {
@@ -87,7 +88,7 @@ namespace ghstats
                     return false;
                 }
 
-                for (int page = 1; (page <= maxPages) && succeeded; page++)
+                for (int page = 1; (page <= maxPages) && succeeded && changed; page++)
                 {
                     url = "https://api.github.com/repos/" + repo + "/pulls?state=" + stateLimit + "&page=" + page;
                     wc.Headers.Add("User-Agent: Other");
@@ -124,6 +125,7 @@ namespace ghstats
                     var pageObject = JsonSerializer.Deserialize<List<GithubPullRequest>>(jsonString);
 
                     // For each PR...
+                    changed = false;
                     foreach (GithubPullRequest pr in pageObject)
                     {
                         // TODO: if we fetch the PR by itself then we can also get the "additions" and "deletions" line counts
@@ -139,6 +141,7 @@ namespace ghstats
                         string lastUpdatedAt = db.GetPullRequestUpdatedAt(pr.number);
                         if ((pr.updated_at != lastUpdatedAt) && succeeded)
                         {
+                            changed = true;
                             string reviewUrl = "https://api.github.com/repos/" + repo + "/pulls/" + pr.number + "/reviews";
                             wc.Headers.Add("User-Agent: Other");
                             try
