@@ -33,7 +33,6 @@ namespace ghstats
 
         public static void PrintTally(Dictionary<string, UserStats> stats)
         {
-            Console.WriteLine("---------------------------");
             Console.WriteLine("ID,Approved,Commented,Unreviewed,Waiting,Other,Total,Reviewed");
             foreach (var entry in stats)
             {
@@ -110,7 +109,7 @@ namespace ghstats
                 repo = arg;
             }
 
-            if (!repo.Contains('/'))
+            if ((repo == null) || !repo.Contains('/'))
             {
                 Console.WriteLine("Error: you must specify a github repository\n");
                 ShowUsage();
@@ -123,10 +122,10 @@ namespace ghstats
             if (!cachedOnly)
             {
                 // Try to fetch updated data from github.
-                GithubApi.UpdateDatabase(db, stateLimit, maxPages);
+                db.UpdateDatabase(maxPages);
             }
 
-            Dictionary<string, UserStats> stats = db.ComputeStats();
+            Dictionary<string, UserStats> stats = db.ComputeStats(stateLimit);
 
             // Finally, print the tally.
             if (stats != null)
