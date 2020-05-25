@@ -106,16 +106,19 @@ namespace ghstats
             // In the above example, there are 60 pages.
             string linkHeaderValue = wc.ResponseHeaders.Get("Link");
             int endIndex = linkHeaderValue.LastIndexOf(">; rel=\"last\"");
-            int pageStringIndex = linkHeaderValue.LastIndexOf("page=", endIndex);
-            string lastPageString = linkHeaderValue.Substring(pageStringIndex + 5, endIndex - pageStringIndex - 5);
-            lastPage = Convert.ToInt32(lastPageString);
-#else
-            jsonString = "[{\"number\":13,\"state\":\"closed\",\"requested_reviewers\":[{\"login\":\"user3\"},{\"login\":\"user4\"}],\"updated_at\":\"TBD\"}]";
-            lastPage = 1;
-#endif
-            if (pageCount > lastPage)
+            if (endIndex >= 0)
             {
-                pageCount = lastPage;
+                int pageStringIndex = linkHeaderValue.LastIndexOf("page=", endIndex);
+                string lastPageString = linkHeaderValue.Substring(pageStringIndex + 5, endIndex - pageStringIndex - 5);
+                lastPage = Convert.ToInt32(lastPageString);
+#else
+                jsonString = "[{\"number\":13,\"state\":\"closed\",\"requested_reviewers\":[{\"login\":\"user3\"},{\"login\":\"user4\"}],\"updated_at\":\"TBD\"}]";
+                lastPage = 1;
+#endif
+                if (pageCount > lastPage)
+                {
+                    pageCount = lastPage;
+                }
             }
             var pageObject = JsonSerializer.Deserialize<List<GithubPullRequest>>(jsonString);
 
@@ -204,8 +207,8 @@ namespace ghstats
                     succeeded = GetPageOfPullRequests(wc, db, url, ref pageCount, ref changed);
                     if (succeeded)
                     {
-                        db.LastSnapshotPageRead = page;
-                        if (db.LastSnapshotPageRead == maxPages)
+                        db.LastSnapshotPageRead = Math.Min(page, pageCount);
+                        if (db.LastSnapshotPageRead == pageCount)
                         {
                             // We've now completed reading a snapshot in order of creation time.
                             db.SnapshotComplete = true;

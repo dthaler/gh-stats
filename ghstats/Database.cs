@@ -175,9 +175,11 @@ namespace ghstats
                 DatabasePullRequest pr = entry.Value;
                 if (!pr.FetchedReviews && !GithubApi.GetGithubReview(this, pr.Number))
                 {
+                    Save();
                     return false;
                 }
             }
+            Save();
             return true;
         }
     }
