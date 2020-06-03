@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 
@@ -144,6 +145,7 @@ namespace ghstats
                         case "APPROVED": userStats.ApprovedCount++; break;
                         case "COMMENTED": userStats.CommentedCount++; break;
                         case "CHANGES_REQUESTED": userStats.OtherCount++; break;
+                        case "DISMISSED": userStats.UnreviewedCount++; break;
                         default: userStats.OtherCount++; break;
                     }
                 }
@@ -170,10 +172,10 @@ namespace ghstats
             }
 
             // In the second stage, fetch review data for each updated PR.
-            foreach (var entry in this.PullRequests)
+            foreach (var entry in this.PullRequests.Where(entry => !entry.Value.FetchedReviews))
             {
                 DatabasePullRequest pr = entry.Value;
-                if (!pr.FetchedReviews && !GithubApi.GetGithubReview(this, pr.Number))
+                if (!GithubApi.GetGithubReview(this, pr.Number))
                 {
                     Save();
                     return false;

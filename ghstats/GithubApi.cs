@@ -152,6 +152,7 @@ namespace ghstats
                 wc.Headers.Add("User-Agent: Other");
                 try
                 {
+                    Console.Error.WriteLine("Fetching PR #" + number + "...");
 #if !USE_MOCK_DATA
                     string jsonString2 = wc.DownloadString(reviewUrl);
 #else

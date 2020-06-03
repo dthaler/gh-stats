@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
 /*
@@ -122,7 +123,15 @@ namespace ghstats
             if (!cachedOnly)
             {
                 // Try to fetch updated data from github.
-                db.UpdateDatabase(maxPages);
+                bool upToDate = db.UpdateDatabase(maxPages);
+                if (!upToDate)
+                {
+                    int fetchedCount = db.PullRequests.Where(pr => pr.Value.FetchedReviews).Count();
+                    int progress = (100 * fetchedCount) / db.PullRequests.Count;
+                    string message = String.Format("Synchronization is only {0}% complete.  To get a report based on incomplete data, use the -c option.", progress);
+                    Console.Error.WriteLine(message);
+                    return;
+                }
             }
 
             Dictionary<string, UserStats> stats = db.ComputeStats(stateLimit);
