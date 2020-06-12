@@ -121,7 +121,7 @@ namespace ghstats
             ostream.Close();
         }
 
-        public Dictionary<string, UserStats> ComputeStats(string stateLimit)
+        public Dictionary<string, UserStats> ComputeStats(string stateLimit, DateTime updatedSince)
         {
             var stats = new Dictionary<string, UserStats>();
             foreach (var entry in this.PullRequests)
@@ -129,6 +129,11 @@ namespace ghstats
                 int number = entry.Key;
                 DatabasePullRequest pr = entry.Value;
                 if ((stateLimit != "all") && (pr.State != stateLimit))
+                {
+                    continue;
+                }
+                DateTime updatedAt = DateTime.Parse(pr.UpdatedAt);
+                if (DateTime.Compare(updatedAt, updatedSince) < 0)
                 {
                     continue;
                 }

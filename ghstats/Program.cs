@@ -64,6 +64,7 @@ namespace ghstats
             Console.WriteLine(" -c, --cached-only          Don't query github, only used cached data.");
             Console.WriteLine(" -h, --help                 Show help.");
             Console.WriteLine(" --pages=<count>            Fetch at most this many pages of pull requests (default=any).");
+            Console.WriteLine(" --since=<date>             Only count pull requests updated since the specified date.");
             Console.WriteLine(" --state=(all|closed|open)  Count pull requests in this state (default=closed).");
             Console.WriteLine(" --version                  Show version.");
         }
@@ -71,6 +72,7 @@ namespace ghstats
         static void Main(string[] args)
         {
             string stateLimit = "closed";
+            DateTime updatedSince = DateTime.MinValue;
             int maxPages = int.MaxValue;
             string repo = null;
             bool cachedOnly = false;
@@ -101,6 +103,17 @@ namespace ghstats
                     continue;
                 }
 
+                if (arg.StartsWith("--updatedSince="))
+                {
+                    if (!DateTime.TryParse(arg.Substring(15), out updatedSince))
+                    {
+                        Console.WriteLine("Error: invalid date format\n");
+                        ShowUsage();
+                        return;
+                    }
+                    continue;
+                }
+
                 if (arg.StartsWith("--state="))
                 {
                     stateLimit = arg.Substring(8);
@@ -110,7 +123,7 @@ namespace ghstats
                 repo = arg;
             }
 
-            if ((repo == null) || !repo.Contains('/'))
+            if ((repo == null) || !repo.Contains('/') || repo.StartsWith('/'))
             {
                 Console.WriteLine("Error: you must specify a github repository\n");
                 ShowUsage();
@@ -134,7 +147,7 @@ namespace ghstats
                 }
             }
 
-            Dictionary<string, UserStats> stats = db.ComputeStats(stateLimit);
+            Dictionary<string, UserStats> stats = db.ComputeStats(stateLimit, updatedSince);
 
             // Finally, print the tally.
             if (stats != null)
